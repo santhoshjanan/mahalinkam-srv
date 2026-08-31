@@ -131,6 +131,15 @@ function openEdit(bookmark) {
                         Import
                     </Link>
 
+                    <span
+                        class="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-gray-500"
+                    >
+                        <span>Export</span>
+                        <a href="/export?format=html" class="hover:text-gray-900">HTML</a>
+                        <a href="/export?format=csv" class="hover:text-gray-900">CSV</a>
+                        <a href="/export?format=json" class="hover:text-gray-900">JSON</a>
+                    </span>
+
                     <PrimaryButton @click="openCreate">Add bookmark</PrimaryButton>
                 </div>
             </div>

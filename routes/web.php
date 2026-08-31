@@ -3,6 +3,7 @@
 use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Web\BookmarkController;
 use App\Http\Controllers\Web\BulkBookmarkController;
+use App\Http\Controllers\Web\ExportController;
 use App\Http\Controllers\Web\FolderController;
 use App\Http\Controllers\Web\ImportController;
 use App\Http\Controllers\Web\RefetchMetadataController;
@@ -20,6 +21,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/import', [ImportController::class, 'index'])->name('import.index');
     Route::post('/import', [ImportController::class, 'store'])->name('import.store');
     Route::get('/import/{import}', [ImportController::class, 'show'])->name('import.show');
+
+    Route::get('/export', ExportController::class)->name('export');
 
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
