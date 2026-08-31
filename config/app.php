@@ -17,6 +17,18 @@ return [
 
     /*
     |--------------------------------------------------------------------------
+    | Application Version
+    |--------------------------------------------------------------------------
+    |
+    | Reported by the JSON API `/api/ping` endpoint so extension clients can
+    | detect the server build they are talking to.
+    |
+    */
+
+    'version' => env('APP_VERSION', '0.1.0'),
+
+    /*
+    |--------------------------------------------------------------------------
     | Application Environment
     |--------------------------------------------------------------------------
     |
