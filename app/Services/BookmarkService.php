@@ -50,6 +50,9 @@ class BookmarkService
             ]);
         } catch (QueryException $e) {
             if ($this->isUniqueViolation($e)) {
+                // Re-select keyed only on normalized_url because (user_id, normalized_url)
+                // is the sole unique index that can raise this SQLSTATE; if another unique
+                // constraint is ever added to bookmarks, this recovery needs revisiting.
                 return [
                     'bookmark' => $user->bookmarks()->where('normalized_url', $normalized)->firstOrFail(),
                     'alreadySaved' => true,
