@@ -34,6 +34,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'flash' => fn () => $request->session()->get('flash'),
             'signupsEnabled' => (bool) config('mahalinkam.signups_enabled'),
         ];
     }
