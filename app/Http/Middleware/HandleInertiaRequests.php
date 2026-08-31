@@ -34,6 +34,7 @@ class HandleInertiaRequests extends Middleware
             'auth' => [
                 'user' => $request->user(),
             ],
+            'signupsEnabled' => (bool) config('mahalinkam.signups_enabled'),
         ];
     }
 }

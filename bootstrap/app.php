@@ -18,7 +18,9 @@ return Application::configure(basePath: dirname(__DIR__))
             AddLinkHeadersForPreloadedAssets::class,
         ]);
 
-        //
+        $middleware->alias([
+            'signups.enabled' => \App\Http\Middleware\EnsureSignupsEnabled::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
