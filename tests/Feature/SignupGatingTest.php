@@ -1,6 +1,7 @@
 <?php
 
-use function Pest\Laravel\{get, post};
+use function Pest\Laravel\get;
+use function Pest\Laravel\post;
 
 it('allows registration when signups are enabled', function () {
     config()->set('mahalinkam.signups_enabled', true);

@@ -1,4 +1,6 @@
-<?php // tests/Unit/ConfigTest.php
+<?php
+
+// tests/Unit/ConfigTest.php
 use Tests\TestCase;
 
 uses(TestCase::class);

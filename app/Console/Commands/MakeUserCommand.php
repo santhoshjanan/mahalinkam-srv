@@ -10,6 +10,7 @@ use Illuminate\Support\Facades\Validator;
 class MakeUserCommand extends Command
 {
     protected $signature = 'mahalinkam:make-user {email} {name} {--password=}';
+
     protected $description = 'Create a verified mahalinkam user account';
 
     public function handle(): int
@@ -27,7 +28,10 @@ class MakeUserCommand extends Command
         ]);
 
         if ($v->fails()) {
-            foreach ($v->errors()->all() as $e) $this->error($e);
+            foreach ($v->errors()->all() as $e) {
+                $this->error($e);
+            }
+
             return self::FAILURE;
         }
 
@@ -39,6 +43,7 @@ class MakeUserCommand extends Command
         ]);
 
         $this->info("Created user #{$user->id} <{$user->email}>");
+
         return self::SUCCESS;
     }
 }

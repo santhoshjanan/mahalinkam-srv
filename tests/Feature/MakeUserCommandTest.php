@@ -11,7 +11,7 @@ it('creates a verified user non-interactively', function () {
     expect($u)->not->toBeNull()
         ->and($u->name)->toBe('Admin')
         ->and($u->email_verified_at)->not->toBeNull()
-        ->and(\Hash::check('secret1234', $u->password))->toBeTrue();
+        ->and(Hash::check('secret1234', $u->password))->toBeTrue();
 });
 
 it('refuses a duplicate email', function () {

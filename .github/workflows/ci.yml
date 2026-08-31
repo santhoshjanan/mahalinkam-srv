@@ -1,0 +1,50 @@
+# .github/workflows/ci.yml
+name: CI
+on: [push, pull_request]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        db: [sqlite, mysql, pgsql]
+    services:
+      mysql:
+        image: mysql:8
+        env: { MYSQL_DATABASE: mahalinkam, MYSQL_ROOT_PASSWORD: root }
+        ports: ['3306:3306']
+        options: >-
+          --health-cmd="mysqladmin ping -proot" --health-interval=5s --health-timeout=5s --health-retries=10
+      postgres:
+        image: postgres:16
+        env: { POSTGRES_DB: mahalinkam, POSTGRES_PASSWORD: root }
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd="pg_isready -U postgres" --health-interval=5s --health-timeout=5s --health-retries=10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with: { php-version: '8.3', tools: composer }
+      - uses: actions/setup-node@v4
+        with: { node-version: '22' }
+      - run: composer install --no-interaction --prefer-dist
+      - run: npm ci && npm run build
+      - run: cp .env.example .env && php artisan key:generate
+      - run: composer lint
+      - name: Configure DB (mysql)
+        if: matrix.db == 'mysql'
+        run: |
+          echo "DB_CONNECTION=mysql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_DATABASE=mahalinkam" >> .env
+          echo "DB_USERNAME=root" >> .env
+          echo "DB_PASSWORD=root" >> .env
+      - name: Configure DB (pgsql)
+        if: matrix.db == 'pgsql'
+        run: |
+          echo "DB_CONNECTION=pgsql" >> .env
+          echo "DB_HOST=127.0.0.1" >> .env
+          echo "DB_DATABASE=mahalinkam" >> .env
+          echo "DB_USERNAME=postgres" >> .env
+          echo "DB_PASSWORD=root" >> .env
+      - run: php artisan test
