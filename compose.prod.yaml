@@ -1,0 +1,68 @@
+# Production stack for mahalinkam.
+#
+# NO bundled edge reverse proxy: the operator runs their own proxy (TLS
+# termination, routing) in front and points it at the single published
+# HTTP port below. The `app` container's internal FPM + nginx is the
+# application server, not an edge proxy.
+#
+# Dev continues to use the Sail `compose.yaml` — this file is separate.
+
+services:
+  app:
+    build: .
+    image: mahalinkam:latest
+    ports:
+      - "8080:8080"
+    env_file: .env
+    volumes:
+      - mahalinkam-storage:/var/www/html/storage
+      # Persists the SQLite database (default DB_CONNECTION=sqlite at
+      # /var/www/html/database/database.sqlite). Harmless when using Postgres.
+      - mahalinkam-database:/var/www/html/database
+    restart: unless-stopped
+    # depends_on:
+    #   - db
+
+  worker:
+    build: .
+    image: mahalinkam:latest
+    command: php artisan queue:work --tries=3 --max-time=3600
+    env_file: .env
+    volumes:
+      - mahalinkam-storage:/var/www/html/storage
+      - mahalinkam-database:/var/www/html/database
+    restart: unless-stopped
+    depends_on:
+      - app
+
+  # ---------------------------------------------------------------------
+  # Optional Postgres. SQLite works with no extra service, so this is
+  # commented out by default. To use Postgres: uncomment this block, the
+  # `depends_on: [db]` above, and set these in your `.env`:
+  #
+  #   DB_CONNECTION=pgsql
+  #   DB_HOST=db
+  #   DB_PORT=5432
+  #   DB_DATABASE=mahalinkam
+  #   DB_USERNAME=mahalinkam
+  #   DB_PASSWORD=change-me
+  # ---------------------------------------------------------------------
+  # db:
+  #   image: postgres:16
+  #   environment:
+  #     POSTGRES_DB: mahalinkam
+  #     POSTGRES_USER: mahalinkam
+  #     POSTGRES_PASSWORD: change-me
+  #   volumes:
+  #     - mahalinkam-pgdata:/var/lib/postgresql/data
+  #   restart: unless-stopped
+  #   healthcheck:
+  #     test: ["CMD", "pg_isready", "-U", "mahalinkam", "-d", "mahalinkam"]
+  #     interval: 10s
+  #     timeout: 5s
+  #     retries: 5
+
+volumes:
+  mahalinkam-storage:
+  mahalinkam-database:
+  # mahalinkam-pgdata:
