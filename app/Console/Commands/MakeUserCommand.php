@@ -39,8 +39,9 @@ class MakeUserCommand extends Command
             'email' => $data['email'],
             'name' => $data['name'],
             'password' => Hash::make($data['password']),
-            'email_verified_at' => now(),
         ]);
+
+        $user->markEmailAsVerified();
 
         $this->info("Created user #{$user->id} <{$user->email}>");
 
