@@ -1,5 +1,7 @@
 <?php // tests/Unit/ConfigTest.php
-use function Pest\Laravel\artisan;
+use Tests\TestCase;
+
+uses(TestCase::class);
 
 it('exposes mahalinkam config with documented defaults', function () {
     expect(config('mahalinkam.signups_enabled'))->toBeTrue()
@@ -9,7 +11,8 @@ it('exposes mahalinkam config with documented defaults', function () {
         ->and(config('mahalinkam.import.max_file_mb'))->toBe(20);
 });
 
-it('coerces SIGNUPS_ENABLED=false from env', function () {
-    config()->set('mahalinkam.signups_enabled', filter_var('false', FILTER_VALIDATE_BOOL));
-    expect(config('mahalinkam.signups_enabled'))->toBeFalse();
+it('casts numeric knobs to integers', function () {
+    expect(config('mahalinkam.metadata.timeout'))->toBeInt()
+        ->and(config('mahalinkam.metadata.max_bytes'))->toBeInt()
+        ->and(config('mahalinkam.import.max_file_mb'))->toBeInt();
 });
