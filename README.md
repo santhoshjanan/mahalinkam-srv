@@ -1,59 +1,162 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# mahalinkam
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Self-hosted, multi-user bookmark manager with a companion browser extension. This
+repository is the **server** — a Laravel application that is the single source of
+truth for all bookmarks, folders and tags. It serves a web UI (Inertia + Vue) for
+humans and a token-authenticated JSON API for the browser extension; both talk to
+the same core, so a bookmark saved from the extension and one saved in the web UI
+are the same record, deduplicated by normalized URL.
 
-## About Laravel
+---
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+## Production quick start
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+**Requirements:** Docker and Docker Compose **>= 2.24** (the `env_file` long-form
+syntax in `compose.prod.yaml` needs it). Nothing else — no host PHP, Node or
+database.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+```bash
+git clone <this-repo-url> mahalinkam-srv
+cd mahalinkam-srv
+cp .env.example .env
+```
 
-## Learning Laravel
+Edit `.env`:
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+```dotenv
+APP_ENV=production
+APP_DEBUG=false
+APP_URL=https://your.domain
+APP_KEY=            # set this — see below
+```
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Generate a **persistent** `APP_KEY` once and paste it into `.env`. If you skip
+this the entrypoint generates an ephemeral key on every container recreate, which
+invalidates all sessions, signed URLs and encrypted data:
 
-## Laravel Sponsors
+```bash
+docker compose -f compose.prod.yaml run --rm app php artisan key:generate --show
+# copy the base64:... value into .env as APP_KEY=base64:...
+```
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Start the stack (an `app` web container on port 8080 plus a `worker` container
+for the queue):
 
-### Premium Partners
+```bash
+docker compose -f compose.prod.yaml up -d
+```
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+**TLS / reverse proxy:** this stack ships none. Point your own reverse proxy
+(Traefik, Caddy, nginx, …) at port **8080** for TLS termination and routing. The
+container's internal FPM + nginx is the application server, not an edge proxy.
 
-## Contributing
+Create the first user (there is no web installer):
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+```bash
+docker compose -f compose.prod.yaml exec app \
+  php artisan mahalinkam:make-user you@example.com "Your Name"
+```
 
-## Code of Conduct
+You will be prompted for a password (min 8 chars). Pass `--password=...` to skip
+the prompt. The account is created already email-verified.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+---
 
-## Security Vulnerabilities
+## Configuration
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+All settings have safe defaults, so a bare start works with no edits. Set these in
+`.env`.
 
-## License
+| Var | Default | Effect |
+|---|---|---|
+| `SIGNUPS_ENABLED` | `true` | When `false`, the self-service registration route and its UI are disabled — create users with `mahalinkam:make-user`. |
+| `METADATA_FETCH_ENABLED` | `true` | When `false`, new bookmarks get `metadata_status=skipped` and no outbound fetch job is dispatched. |
+| `METADATA_FETCH_TIMEOUT` | `8` | Total seconds allowed per metadata fetch. |
+| `METADATA_FETCH_MAX_BYTES` | `524288` | Max response body read per metadata fetch (bytes). |
+| `IMPORT_MAX_FILE_MB` | `20` | Upload size cap for import files (MB). |
+| `DB_CONNECTION` | `sqlite` | Database driver: `sqlite` \| `mysql` \| `pgsql`. |
+| `QUEUE_CONNECTION` | `database` | Queue driver. The bundled `worker` container runs `queue:work`. |
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+Standard Laravel vars (`APP_URL`, `MAIL_*`, etc.) pass through untouched.
+
+---
+
+## Database
+
+**SQLite by default.** No extra service; the file lives in the
+`mahalinkam-database` volume at `/var/www/html/database/database.sqlite` and the
+entrypoint creates and migrates it on first boot.
+
+**To use Postgres:** in `compose.prod.yaml` uncomment the `db` service, the
+`depends_on: [db]` line under `app`, and the `mahalinkam-pgdata` volume; then set
+in `.env`:
+
+```dotenv
+DB_CONNECTION=pgsql
+DB_HOST=db
+DB_PORT=5432
+DB_DATABASE=mahalinkam
+DB_USERNAME=mahalinkam
+DB_PASSWORD=change-me
+```
+
+MySQL works the same way with `DB_CONNECTION=mysql` and your own `mysql` service.
+All migrations and queries are portable across the three engines.
+
+---
+
+## Backups
+
+There is no application state outside the database and the `storage/` directory.
+Back up:
+
+- **The database** — the `mahalinkam-database` volume (SQLite), or a `pg_dump` /
+  `mysqldump` of your external DB.
+- **`storage/`** — the `mahalinkam-storage` volume (uploaded import files, logs).
+
+Both volume names are defined at the bottom of `compose.prod.yaml`.
+
+---
+
+## Browser extension pairing
+
+1. Sign in to the web UI.
+2. Go to **`/settings/tokens`** and create a token. The plaintext token is shown
+   **once** — copy it immediately.
+3. In the extension's options, paste your server URL (the `APP_URL`) and the
+   token.
+
+Revoke a token from the same page; it takes effect immediately.
+
+---
+
+## Development
+
+Via [Laravel Sail](https://laravel.com/docs/sail) — Docker only, no host PHP or
+Node required. All commands run inside the Sail containers.
+
+```bash
+cp .env.example .env
+./vendor/bin/sail up -d
+./vendor/bin/sail artisan key:generate
+./vendor/bin/sail artisan migrate
+./vendor/bin/sail npm install
+./vendor/bin/sail npm run dev          # Vite dev server
+./vendor/bin/sail artisan queue:work   # process metadata / import jobs
+```
+
+First dev user:
+
+```bash
+./vendor/bin/sail artisan mahalinkam:make-user you@example.com "Your Name" --password=password
+```
+
+Run the test suite and the linter:
+
+```bash
+./vendor/bin/sail artisan test
+./vendor/bin/sail composer lint
+```
+
+The dev stack (`compose.yaml`) also starts Postgres and MySQL services so the
+suite can be run against all three engines locally; CI does this on every push.
