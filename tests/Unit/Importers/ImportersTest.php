@@ -31,6 +31,10 @@ it('parses csv with tags and folder path', function () {
         ->and($rows[1])->toBe(['https://b.test/two', 'Two', [], []]);
 });
 
+it('parses a csv with a leading UTF-8 BOM identically', function () {
+    expect(collectRows('csv', 'sample-bom.csv'))->toBe(collectRows('csv', 'sample.csv'));
+});
+
 it('parses json bookmarks array', function () {
     $rows = collectRows('json', 'sample.json');
     expect($rows[0])->toBe(['https://a.test/one', 'One', ['news'], ['Reading', 'Tech']]);
@@ -40,4 +44,36 @@ it('parses netscape html with nested folders', function () {
     $rows = collectRows('html', 'netscape.html');
     expect($rows[0])->toBe(['https://a.test/one', 'One', ['news', 'tech'], ['Reading', 'Tech']])
         ->and($rows[1])->toBe(['https://b.test/two', 'Two', [], []]);
+});
+
+it('parses a realistic chrome export', function () {
+    $rows = collectRows('html', 'chrome-export.html');
+
+    // Deep bookmark: 3-level path, entity-decoded title, TAGS attr.
+    expect($rows[0])->toBe([
+        'https://benandjerry.test/',
+        'Ben & Jerry',
+        ['lang', 'systems'],
+        ['Bookmarks bar', 'Dev', 'Rust'],
+    ]);
+
+    // Empty <H3>Empty</H3> folder yields no row and does not corrupt the
+    // path of the bookmark that follows it (still Bookmarks bar / Dev).
+    // TAGS appears before HREF in this tag.
+    expect($rows[1])->toBe([
+        'https://tagsfirst.test/y',
+        'Tags First',
+        ['tools', 'cli'],
+        ['Bookmarks bar', 'Dev'],
+    ]);
+
+    // Single-quoted HREF is captured; back up one level to Bookmarks bar.
+    expect($rows[2])->toBe([
+        'https://single.test/x',
+        'Single Quoted',
+        [],
+        ['Bookmarks bar'],
+    ]);
+
+    expect($rows)->toHaveCount(3);
 });

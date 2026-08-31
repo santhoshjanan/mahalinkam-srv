@@ -26,6 +26,9 @@ final class CsvImporter implements Importer
                 throw new RuntimeException('CSV file is empty; a header row is required.');
             }
 
+            // Strip a leading UTF-8 BOM that Excel and many exporters prepend.
+            $header[0] = preg_replace('~^\xEF\xBB\xBF~', '', (string) ($header[0] ?? ''));
+
             $header = array_map(
                 fn ($name) => strtolower(trim((string) $name)),
                 $header

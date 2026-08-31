@@ -59,7 +59,9 @@ final class HtmlImporter implements Importer
             // <h3> — opens a new folder level.
             $name = $this->decode($match['h3'] ?? '');
 
-            if ($name !== '') {
+            // Cap depth so a truncated file (missing trailing </DL>s) cannot
+            // grow folderPath without bound. Task 19 re-clamps to the real limit.
+            if ($name !== '' && count($stack) < 20) {
                 $stack[] = $name;
             }
         }
