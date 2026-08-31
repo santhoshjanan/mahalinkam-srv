@@ -1,21 +1,26 @@
 <?php
 
 use App\Enums\MetadataStatus;
+use App\Exceptions\BlockedHostException;
 use App\Jobs\FetchBookmarkMetadata;
 use App\Models\Bookmark;
 use App\Models\User;
 use App\Services\MetadataFetcher;
-use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
+function fakeFetcherReturning(array $meta): void
+{
+    $mock = Mockery::mock(MetadataFetcher::class);
+    $mock->shouldReceive('fetch')->andReturn($meta);
+    app()->instance(MetadataFetcher::class, $mock);
+}
+
 it('fills only empty fields on success', function () {
-    Http::fake(['*' => Http::response(
-        '<html><head><title>Real Title</title>'
-        .'<meta property="og:description" content="Desc">'
-        .'<link rel="icon" href="/fav.png"></head></html>',
-        200,
-        ['Content-Type' => 'text/html'],
-    )]);
+    fakeFetcherReturning([
+        'title' => 'Real Title',
+        'description' => 'fetched description',
+        'favicon_url' => 'https://example.com/fav.png',
+    ]);
 
     $u = User::factory()->create();
     $b = Bookmark::factory()->for($u)->create([
@@ -36,7 +41,49 @@ it('fills only empty fields on success', function () {
         ->and($b->metadata_status)->toBe(MetadataStatus::Done);
 });
 
-it('marks failed when the host resolves to a private IP', function () {
+it('does not run for a bookmark that is not Pending or Failed', function () {
+    fakeFetcherReturning([
+        'title' => 'Should Not Apply',
+        'description' => null,
+        'favicon_url' => null,
+    ]);
+
+    $u = User::factory()->create();
+    $b = Bookmark::factory()->for($u)->create([
+        'title' => 'kept',
+        'metadata_status' => MetadataStatus::Done,
+    ]);
+
+    (new FetchBookmarkMetadata($b))->handle(app(MetadataFetcher::class));
+
+    expect($b->fresh()->title)->toBe('kept');
+});
+
+it('re-runs for a Failed bookmark', function () {
+    fakeFetcherReturning([
+        'title' => 'Recovered Title',
+        'description' => null,
+        'favicon_url' => null,
+    ]);
+
+    $u = User::factory()->create();
+    $b = Bookmark::factory()->for($u)->create([
+        'title' => null,
+        'metadata_status' => MetadataStatus::Failed,
+    ]);
+
+    (new FetchBookmarkMetadata($b))->handle(app(MetadataFetcher::class));
+
+    $b->refresh();
+    expect($b->title)->toBe('Recovered Title')
+        ->and($b->metadata_status)->toBe(MetadataStatus::Done);
+});
+
+it('marks the bookmark Failed via the failed() hook', function () {
+    $mock = Mockery::mock(MetadataFetcher::class);
+    $mock->shouldReceive('fetch')->andThrow(new BlockedHostException('blocked'));
+    app()->instance(MetadataFetcher::class, $mock);
+
     $u = User::factory()->create();
     $b = Bookmark::factory()->for($u)->create([
         'url' => 'http://127.0.0.1/x',
@@ -46,26 +93,36 @@ it('marks failed when the host resolves to a private IP', function () {
     ]);
 
     $job = new FetchBookmarkMetadata($b);
-    // simulate the final attempt
     try {
         $job->handle(app(MetadataFetcher::class));
     } catch (Throwable) {
-        // expected
+        // expected on the final attempt
     }
     $job->failed(new RuntimeException('blocked'));
 
     expect($b->fresh()->metadata_status)->toBe(MetadataStatus::Failed);
 });
 
+it('failed() does not clobber a Done status', function () {
+    $u = User::factory()->create();
+    $b = Bookmark::factory()->for($u)->create([
+        'metadata_status' => MetadataStatus::Done,
+    ]);
+
+    (new FetchBookmarkMetadata($b))->failed(new RuntimeException('late failure'));
+
+    expect($b->fresh()->metadata_status)->toBe(MetadataStatus::Done);
+});
+
 it('is a no-op when metadata fetching is disabled', function () {
     config(['mahalinkam.metadata.enabled' => false]);
 
-    Http::fake(); // any request would be a failure
+    $mock = Mockery::mock(MetadataFetcher::class);
+    $mock->shouldNotReceive('fetch');
+    app()->instance(MetadataFetcher::class, $mock);
 
     $u = User::factory()->create();
     $b = Bookmark::factory()->for($u)->create([
-        'url' => 'https://example.com/page',
-        'normalized_url' => 'https://example.com/page',
         'title' => null,
         'metadata_status' => MetadataStatus::Pending,
     ]);
@@ -75,8 +132,6 @@ it('is a no-op when metadata fetching is disabled', function () {
     $b->refresh();
     expect($b->title)->toBeNull()
         ->and($b->metadata_status)->toBe(MetadataStatus::Pending);
-
-    Http::assertNothingSent();
 });
 
 it('re-queues a fetch via the refetch endpoint for the owner', function () {

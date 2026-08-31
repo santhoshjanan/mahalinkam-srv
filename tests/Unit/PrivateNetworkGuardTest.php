@@ -1,5 +1,6 @@
 <?php
 
+use App\Exceptions\BlockedHostException;
 use App\Support\PrivateNetworkGuard;
 
 it('classifies private and public IPs', function () {
@@ -12,4 +13,32 @@ it('classifies private and public IPs', function () {
     foreach (['1.1.1.1', '93.184.216.34', '2606:2800:220:1:248:1893:25c8:1946'] as $ip) {
         expect($g->isBlockedIp($ip))->toBeFalse("{$ip} should be allowed");
     }
+});
+
+it('blocks a private IPv4 literal host without touching DNS', function () {
+    $g = new PrivateNetworkGuard;
+
+    expect(fn () => $g->assertHostAllowed('127.0.0.1'))->toThrow(BlockedHostException::class);
+});
+
+it('allows a public IPv4 literal host', function () {
+    $g = new PrivateNetworkGuard;
+
+    $g->assertHostAllowed('1.1.1.1');
+
+    expect(true)->toBeTrue();
+});
+
+it('blocks a bracketed IPv6 loopback literal', function () {
+    $g = new PrivateNetworkGuard;
+
+    expect(fn () => $g->assertHostAllowed('[::1]'))->toThrow(BlockedHostException::class);
+});
+
+it('allows a bracketed public IPv6 literal', function () {
+    $g = new PrivateNetworkGuard;
+
+    $g->assertHostAllowed('[2606:2800:220:1:248:1893:25c8:1946]');
+
+    expect(true)->toBeTrue();
 });

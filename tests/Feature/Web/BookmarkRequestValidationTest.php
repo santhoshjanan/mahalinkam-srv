@@ -2,9 +2,12 @@
 
 use App\Models\Folder;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\postJson;
+
+beforeEach(fn () => Queue::fake());
 
 it('rejects a bookmark with no url', function () {
     actingAs(User::factory()->create());
@@ -22,6 +25,8 @@ it('rejects a folder_id owned by someone else', function () {
 it('accepts a null folder_id', function () {
     actingAs(User::factory()->create());
     postJson('/bookmarks', ['url' => 'https://a.test/', 'folder_id' => null])
+        ->assertSessionHasNoErrors()
+        ->assertRedirect()
         ->assertValid('folder_id');
 });
 

@@ -26,6 +26,12 @@ class PrivateNetworkGuard
      */
     public function assertHostAllowed(string $host): void
     {
+        // parse_url() yields IPv6 literals bracketed (e.g. "[::1]"); strip a single
+        // matched pair so the literal-IP path handles them instead of DNS.
+        if (str_starts_with($host, '[') && str_ends_with($host, ']')) {
+            $host = substr($host, 1, -1);
+        }
+
         if (filter_var($host, FILTER_VALIDATE_IP) !== false) {
             if ($this->isBlockedIp($host)) {
                 throw new BlockedHostException("Blocked IP host: {$host}");
