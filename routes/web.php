@@ -4,6 +4,7 @@ use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\Web\BookmarkController;
 use App\Http\Controllers\Web\BulkBookmarkController;
 use App\Http\Controllers\Web\FolderController;
+use App\Http\Controllers\Web\RefetchMetadataController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -13,6 +14,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::post('/bookmarks/bulk', BulkBookmarkController::class)->name('bookmarks.bulk');
     Route::patch('/bookmarks/{bookmark}', [BookmarkController::class, 'update'])->name('bookmarks.update');
     Route::delete('/bookmarks/{bookmark}', [BookmarkController::class, 'destroy'])->name('bookmarks.destroy');
+    Route::post('/bookmarks/{bookmark}/refetch', RefetchMetadataController::class)->name('bookmarks.refetch');
 
     Route::post('/folders', [FolderController::class, 'store'])->name('folders.store');
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');

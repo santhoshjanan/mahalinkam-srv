@@ -4,11 +4,14 @@ use App\Models\Bookmark;
 use App\Models\Folder;
 use App\Models\Tag;
 use App\Models\User;
+use Illuminate\Support\Facades\Queue;
 
 use function Pest\Laravel\actingAs;
 use function Pest\Laravel\get;
 use function Pest\Laravel\patch;
 use function Pest\Laravel\post;
+
+beforeEach(fn () => Queue::fake());
 
 it('renders the index with the user\'s bookmarks only', function () {
     $u = User::factory()->create(['email_verified_at' => now()]);
