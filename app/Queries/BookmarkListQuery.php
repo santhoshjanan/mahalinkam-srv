@@ -39,9 +39,9 @@ class BookmarkListQuery
         }
 
         match ($filters['sort'] ?? 'created_desc') {
-            'created_asc' => $q->orderBy('created_at'),
-            'title_asc' => $q->orderByRaw('lower(title) asc'),
-            default => $q->orderByDesc('created_at'),
+            'created_asc' => $q->orderBy('created_at')->orderBy('id'),
+            'title_asc' => $q->orderByRaw('lower(title) asc')->orderBy('id'),
+            default => $q->orderByDesc('created_at')->orderByDesc('id'),
         };
 
         return $q->paginate(self::PER_PAGE)->withQueryString();

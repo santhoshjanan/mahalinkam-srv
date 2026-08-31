@@ -58,6 +58,32 @@ it('ANDs tag filters and sorts', function () {
     expect($titles[0])->toBe('A only');
 });
 
+it('sorts created_desc by default and created_asc as the reverse', function () {
+    $u = User::factory()->create();
+    $ids = [];
+    for ($i = 0; $i < 3; $i++) {
+        $ids[] = Bookmark::factory()->for($u)->create(['created_at' => now()->subMinutes($i)])->id;
+    }
+    // $ids[0] is newest, $ids[2] is oldest.
+
+    expect(BookmarkListQuery::for($u, [])->pluck('id')->all())->toBe($ids)
+        ->and(BookmarkListQuery::for($u, ['sort' => 'created_asc'])->pluck('id')->all())
+        ->toBe(array_reverse($ids));
+});
+
+it('is deterministic for equal created_at, breaking ties by id desc', function () {
+    $u = User::factory()->create();
+    $ts = now();
+    $a = Bookmark::factory()->for($u)->create(['created_at' => $ts]);
+    $b = Bookmark::factory()->for($u)->create(['created_at' => $ts]);
+
+    $first = BookmarkListQuery::for($u, [])->pluck('id')->all();
+    $second = BookmarkListQuery::for($u, [])->pluck('id')->all();
+
+    expect($first)->toBe($second)
+        ->and($first)->toBe([$b->id, $a->id]);
+});
+
 it('scopes to the user and paginates 50', function () {
     $u = User::factory()->create();
     Bookmark::factory()->for($u)->count(55)->create();
