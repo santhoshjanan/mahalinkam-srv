@@ -18,7 +18,7 @@ class UrlNormalizer
     {
         $url = trim($url);                                    // 1
         $parts = parse_url($url);
-        if ($parts === false || empty($parts['scheme']) || empty($parts['host'])) {
+        if ($parts === false || empty($parts['scheme']) || ! isset($parts['host']) || $parts['host'] === '') {
             throw new InvalidUrlException("Unparseable URL: {$url}");
         }
 
@@ -34,6 +34,7 @@ class UrlNormalizer
         }
 
         // 4 drop fragment (parse_url already separates it; we simply never re-add it)
+        // 7 + 8 applied as "empty -> '/' first, then strip trailing slash"; result is order-independent.
 
         $path = $parts['path'] ?? '/';
         if ($path === '') {
@@ -44,7 +45,7 @@ class UrlNormalizer
         }
 
         $query = '';
-        if (! empty($parts['query'])) {                       // 5 + 6
+        if (isset($parts['query']) && $parts['query'] !== '') { // 5 + 6
             $kept = [];
             // preserve original order: re-split raw rather than trusting parse_str order
             foreach (explode('&', $parts['query']) as $seg) {
@@ -65,7 +66,7 @@ class UrlNormalizer
             $result .= '?'.$query;
         }
 
-        if (strlen($result) > self::MAX_LENGTH) {
+        if (mb_strlen($result) > self::MAX_LENGTH) {
             throw new InvalidUrlException('Normalized URL exceeds '.self::MAX_LENGTH.' characters');
         }
 

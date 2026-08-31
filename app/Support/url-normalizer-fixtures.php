@@ -10,6 +10,8 @@ return [
     ['in' => 'https://example.com/p?utm_source=x&id=7&fbclid=abc', 'out' => 'https://example.com/p?id=7'],
     ['in' => 'https://example.com/p?b=2&a=1', 'out' => 'https://example.com/p?b=2&a=1'], // order preserved, not sorted
     ['in' => 'https://example.com/p?utm_source=x', 'out' => 'https://example.com/p'],   // trailing ? dropped
+    ['in' => 'https://example.com/p?utm%5Fsource=x&keep=1', 'out' => 'https://example.com/p?keep=1'], // key url-decoded before match (%5F = _)
+    ['in' => 'https://example.com/p?0', 'out' => 'https://example.com/p?0'],            // falsy-but-present query is kept
     ['in' => 'https://example.com', 'out' => 'https://example.com/'],                   // empty path stays '/'
     ['in' => 'ftp://example.com/x', 'throws' => true],
     ['in' => 'not a url', 'throws' => true],
