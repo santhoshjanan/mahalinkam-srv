@@ -13,6 +13,7 @@ use App\Services\UrlNormalizer;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
+use Illuminate\Validation\ValidationException;
 
 class BookmarkController extends Controller
 {
@@ -39,7 +40,7 @@ class BookmarkController extends Controller
         try {
             $result = $this->bookmarks->save($request->user(), $request->toBookmarkInput());
         } catch (InvalidUrlException $e) {
-            abort(422, $e->getMessage());
+            throw ValidationException::withMessages(['url' => $e->getMessage()]);
         }
 
         return (new BookmarkResource($result['bookmark']->loadMissing('tags')))
@@ -55,7 +56,7 @@ class BookmarkController extends Controller
         try {
             $normalized = $this->normalizer->normalize($validated['url']);
         } catch (InvalidUrlException $e) {
-            abort(422, $e->getMessage());
+            throw ValidationException::withMessages(['url' => $e->getMessage()]);
         }
 
         $bookmark = $request->user()->bookmarks()
@@ -76,10 +77,10 @@ class BookmarkController extends Controller
         try {
             $updated = $this->bookmarks->update($model, $request->toBookmarkInput());
         } catch (InvalidUrlException $e) {
-            abort(422, $e->getMessage());
+            throw ValidationException::withMessages(['url' => $e->getMessage()]);
         }
 
-        return new BookmarkResource($updated->fresh('tags'));
+        return new BookmarkResource($updated);
     }
 
     public function destroy(Request $request, int $bookmark): Response

@@ -102,11 +102,27 @@ it('deletes an owned bookmark', function () {
     expect(Bookmark::find($b->id))->toBeNull();
 });
 
-it('rejects an invalid url on POST with a 422', function () {
+it('rejects an invalid url on POST with a standard 422 validation shape', function () {
     $u = User::factory()->create();
     $this->withHeaders(['Authorization' => 'Bearer '.tok($u)])
         ->postJson('/api/bookmarks', ['url' => 'not a real url'])
-        ->assertStatus(422);
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('url');
+});
+
+it('returns a 422 validation error when PATCH would clash on the normalized url', function () {
+    $u = User::factory()->create();
+    $h = ['Authorization' => 'Bearer '.tok($u)];
+
+    $this->withHeaders($h)->postJson('/api/bookmarks', ['url' => 'https://clash.test/a'])->assertCreated();
+    $this->withHeaders($h)->postJson('/api/bookmarks', ['url' => 'https://clash.test/b'])->assertCreated();
+
+    $first = Bookmark::where('user_id', $u->id)->where('normalized_url', 'https://clash.test/a')->firstOrFail();
+
+    $this->withHeaders($h)->patchJson("/api/bookmarks/{$first->id}", ['url' => 'https://clash.test/b'])
+        ->assertStatus(422)
+        ->assertJsonValidationErrors('url')
+        ->assertJsonPath('errors.url.0', 'This URL is already saved.');
 });
 
 it('narrows the list by the tag[] filter', function () {
