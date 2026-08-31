@@ -77,6 +77,11 @@ const showingNavigationDropdown = ref(false);
                                             Profile
                                         </DropdownLink>
                                         <DropdownLink
+                                            :href="route('settings.tokens.index')"
+                                        >
+                                            API Tokens
+                                        </DropdownLink>
+                                        <DropdownLink
                                             :href="route('logout')"
                                             method="post"
                                             as="button"
@@ -166,6 +171,11 @@ const showingNavigationDropdown = ref(false);
                         <div class="mt-3 space-y-1">
                             <ResponsiveNavLink :href="route('profile.edit')">
                                 Profile
+                            </ResponsiveNavLink>
+                            <ResponsiveNavLink
+                                :href="route('settings.tokens.index')"
+                            >
+                                API Tokens
                             </ResponsiveNavLink>
                             <ResponsiveNavLink
                                 :href="route('logout')"

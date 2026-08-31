@@ -7,6 +7,7 @@ use App\Http\Controllers\Web\ExportController;
 use App\Http\Controllers\Web\FolderController;
 use App\Http\Controllers\Web\ImportController;
 use App\Http\Controllers\Web\RefetchMetadataController;
+use App\Http\Controllers\Web\TokenController;
 use Illuminate\Support\Facades\Route;
 
 Route::middleware(['auth', 'verified'])->group(function () {
@@ -28,6 +29,10 @@ Route::middleware(['auth', 'verified'])->group(function () {
     Route::patch('/folders/{folder}', [FolderController::class, 'update'])->name('folders.update');
     Route::patch('/folders/{folder}/move', [FolderController::class, 'move'])->name('folders.move');
     Route::delete('/folders/{folder}', [FolderController::class, 'destroy'])->name('folders.destroy');
+
+    Route::get('/settings/tokens', [TokenController::class, 'index'])->name('settings.tokens.index');
+    Route::post('/settings/tokens', [TokenController::class, 'store'])->name('settings.tokens.store');
+    Route::delete('/settings/tokens/{id}', [TokenController::class, 'destroy'])->name('settings.tokens.destroy');
 });
 
 // Keep the Breeze-named "dashboard" route resolvable; the app home is "/".
