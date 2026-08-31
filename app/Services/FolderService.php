@@ -30,7 +30,7 @@ class FolderService
     public function move(Folder $folder, ?int $newParentId): Folder
     {
         if ($newParentId !== null) {
-            if ($newParentId === $folder->id || $this->isDescendant($folder, $newParentId)) {
+            if ((int) $newParentId === (int) $folder->id || $this->isDescendant($folder, $newParentId)) {
                 throw new FolderCycleException('Cannot move a folder into itself or a descendant.');
             }
 
@@ -86,7 +86,7 @@ class FolderService
         $cur = Folder::find($candidateId);
 
         while ($cur && $cur->parent_id !== null) {
-            if ($cur->parent_id === $ancestor->id) {
+            if ((int) $cur->parent_id === (int) $ancestor->id) {
                 return true;
             }
             $cur = $cur->parent()->first();
