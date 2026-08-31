@@ -31,20 +31,37 @@ jobs:
       - run: npm ci && npm run build
       - run: cp .env.example .env && php artisan key:generate
       - run: composer lint
-      - name: Configure DB (mysql)
+      # DB config is passed as real process env vars on the test steps below,
+      # not appended to .env. PHPUnit's non-`force` <env> entries in phpunit.xml
+      # (DB_CONNECTION=sqlite, DB_DATABASE=:memory:) do NOT overwrite a variable
+      # that already exists in the process environment, so these win and the
+      # mysql/pgsql legs genuinely run against those engines.
+      - name: Run tests (sqlite)
+        if: matrix.db == 'sqlite'
+        run: |
+          php artisan tinker --execute="echo 'DB default: '.config('database.default').PHP_EOL;"
+          php artisan test
+      - name: Run tests (mysql)
         if: matrix.db == 'mysql'
+        env:
+          DB_CONNECTION: mysql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '3306'
+          DB_DATABASE: mahalinkam
+          DB_USERNAME: root
+          DB_PASSWORD: root
         run: |
-          echo "DB_CONNECTION=mysql" >> .env
-          echo "DB_HOST=127.0.0.1" >> .env
-          echo "DB_DATABASE=mahalinkam" >> .env
-          echo "DB_USERNAME=root" >> .env
-          echo "DB_PASSWORD=root" >> .env
-      - name: Configure DB (pgsql)
+          php artisan tinker --execute="echo 'DB default: '.config('database.default').PHP_EOL;"
+          php artisan test
+      - name: Run tests (pgsql)
         if: matrix.db == 'pgsql'
+        env:
+          DB_CONNECTION: pgsql
+          DB_HOST: 127.0.0.1
+          DB_PORT: '5432'
+          DB_DATABASE: mahalinkam
+          DB_USERNAME: postgres
+          DB_PASSWORD: root
         run: |
-          echo "DB_CONNECTION=pgsql" >> .env
-          echo "DB_HOST=127.0.0.1" >> .env
-          echo "DB_DATABASE=mahalinkam" >> .env
-          echo "DB_USERNAME=postgres" >> .env
-          echo "DB_PASSWORD=root" >> .env
-      - run: php artisan test
+          php artisan tinker --execute="echo 'DB default: '.config('database.default').PHP_EOL;"
+          php artisan test
