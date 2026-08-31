@@ -1,5 +1,14 @@
 # Production stack for mahalinkam.
 #
+# First boot:
+#   cp .env.example .env
+#   Edit .env: APP_ENV=production, APP_DEBUG=false, APP_URL=https://your.domain
+#   Set a PERSISTENT APP_KEY (generate once):
+#     docker compose -f compose.prod.yaml run --rm app php artisan key:generate --show
+#     ...and paste it into .env as APP_KEY=base64:...
+#   Postgres: uncomment the `db` service and its DB_* lines below.
+# Put your own reverse proxy in front of port 8080 (this stack has none).
+#
 # NO bundled edge reverse proxy: the operator runs their own proxy (TLS
 # termination, routing) in front and points it at the single published
 # HTTP port below. The `app` container's internal FPM + nginx is the
@@ -13,7 +22,9 @@ services:
     image: mahalinkam:latest
     ports:
       - "8080:8080"
-    env_file: .env
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - mahalinkam-storage:/var/www/html/storage
       # Persists the SQLite database (default DB_CONNECTION=sqlite at
@@ -26,14 +37,20 @@ services:
   worker:
     build: .
     image: mahalinkam:latest
-    command: php artisan queue:work --tries=3 --max-time=3600
-    env_file: .env
+    # Explicit entrypoint: the worker must NEVER run migrations / cache builds
+    # (that is the `app` container's job — running both concurrently on a cold
+    # first boot races on the fresh SQLite file). This bypasses entrypoint.sh.
+    entrypoint: ["php", "artisan", "queue:work", "--tries=3", "--max-time=3600"]
+    env_file:
+      - path: .env
+        required: false
     volumes:
       - mahalinkam-storage:/var/www/html/storage
       - mahalinkam-database:/var/www/html/database
     restart: unless-stopped
     depends_on:
-      - app
+      app:
+        condition: service_healthy
 
   # ---------------------------------------------------------------------
   # Optional Postgres. SQLite works with no extra service, so this is

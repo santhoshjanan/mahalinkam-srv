@@ -40,13 +40,17 @@ RUN npm run build
 # Stage 3 — runtime: serversideup PHP 8.3 with bundled FPM + nginx.
 # (This internal nginx IS the app server, not an edge reverse proxy.)
 # ---------------------------------------------------------------------------
-FROM serversideup/php:8.3-fpm-nginx
+# Pinned by digest for reproducible builds (tag: v4.5.x, PHP 8.3.33).
+FROM serversideup/php:8.3-fpm-nginx@sha256:9c97fa2a6f6f8b910d95a0c950ff949963a2d0326f642c171e73feb097f521ad
 
-# Sane, overridable image defaults.
+# Sane, overridable image defaults. The base image ships a HEALTHCHECK that
+# curls http://localhost:${NGINX_HTTP_PORT}${HEALTHCHECK_PATH}; point it at
+# Laravel's real health route so it exercises PHP-FPM, not just nginx.
 ENV APP_ENV=production \
     APP_DEBUG=false \
     AUTORUN_ENABLED=false \
-    PHP_OPCACHE_ENABLE=1
+    PHP_OPCACHE_ENABLE=1 \
+    HEALTHCHECK_PATH=/up
 
 USER www-data
 WORKDIR /var/www/html
@@ -56,9 +60,7 @@ COPY --chown=www-data:www-data . .
 COPY --chown=www-data:www-data --from=vendor /app/vendor ./vendor
 COPY --chown=www-data:www-data --from=assets /app/public/build ./public/build
 
-# A writable .env so `key:generate --force` has a file to update when no
-# APP_KEY is supplied. Real environment variables (compose env_file /
-# environment) always take precedence over these file values.
+# fallback env / key:generate target; real env vars always override (immutable Dotenv)
 RUN rm -f bootstrap/cache/packages.php bootstrap/cache/services.php \
     && cp .env.example .env \
     && php artisan package:discover --ansi
