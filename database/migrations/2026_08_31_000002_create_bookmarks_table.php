@@ -13,9 +13,10 @@ return new class extends Migration
             $t->foreignId('user_id')->constrained()->cascadeOnDelete();
             $t->foreignId('folder_id')->nullable()->constrained('folders')->nullOnDelete();
             $t->text('url');
-            // 768 chars keeps the (user_id, normalized_url) unique index within
-            // MySQL's utf8mb4 3072-byte index limit (768 * 4 = 3072).
-            $t->string('normalized_url', 768);
+            // 766 chars keeps the composite (user_id, normalized_url) unique index
+            // within MySQL's utf8mb4 3072-byte limit: 766 * 4 + 8 (bigint
+            // user_id) = 3072. Mirrored by UrlNormalizer::MAX_LENGTH.
+            $t->string('normalized_url', 766);
             $t->string('title', 1024)->nullable();
             $t->text('description')->nullable();
             $t->string('favicon_url', 2048)->nullable();
