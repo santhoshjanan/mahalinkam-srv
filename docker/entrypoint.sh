@@ -8,10 +8,16 @@ if [ "${DB_CONNECTION:-sqlite}" = "sqlite" ]; then
 fi
 
 if [ -z "$APP_KEY" ]; then
-    echo "WARNING: APP_KEY is not set. Generating an EPHEMERAL key — it changes on every" >&2
-    echo "         container recreate, which invalidates sessions/signed URLs/encrypted data." >&2
+    # `key:generate --force` writes to the .env FILE, but an empty APP_KEY="" injected
+    # via compose `env_file:` is a real process env var that shadows the file for
+    # `config:cache` below. Generate with --show (writes nothing) and export it, so the
+    # cached config picks it up regardless of how APP_KEY arrived empty.
+    APP_KEY="$(php artisan key:generate --show)"
+    export APP_KEY
+    echo "WARNING: APP_KEY was not set — generated an EPHEMERAL key for this run." >&2
+    echo "         It changes on every container recreate, which invalidates" >&2
+    echo "         sessions / signed URLs / encrypted data." >&2
     echo "         Set a persistent APP_KEY in .env for production." >&2
-    php artisan key:generate --force
 fi
 
 # Refuse to boot a production container with debug output enabled — an operator
