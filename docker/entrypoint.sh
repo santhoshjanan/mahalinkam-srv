@@ -14,6 +14,18 @@ if [ -z "$APP_KEY" ]; then
     php artisan key:generate --force
 fi
 
+# Refuse to boot a production container with debug output enabled — an operator
+# who copied the dev .env would otherwise serve stack traces on :8080.
+case "${APP_DEBUG:-false}" in
+  true|True|TRUE|1|on|On)
+    if [ "${APP_ENV:-production}" = "production" ]; then
+      echo "FATAL: APP_DEBUG is enabled while APP_ENV=production. Set APP_DEBUG=false in .env." >&2
+      exit 1
+    fi
+    echo "WARNING: APP_DEBUG is enabled." >&2
+    ;;
+esac
+
 php artisan migrate --force
 php artisan config:cache && php artisan route:cache && php artisan view:cache
 

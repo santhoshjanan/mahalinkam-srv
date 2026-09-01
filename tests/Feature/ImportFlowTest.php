@@ -51,9 +51,26 @@ it('processes rows: creates, dedupes, records errors, builds folders', function 
         ->and($import->total_rows)->toBe(3)
         ->and($import->processed_rows)->toBe(3)
         ->and(Bookmark::where('user_id', $u->id)->count())->toBe(1)
-        ->and(Folder::where('user_id', $u->id)->pluck('name')->all())->toBe(['Reading', 'Tech']);
+        ->and(Folder::where('user_id', $u->id)->orderBy('id')->pluck('name')->all())->toBe(['Reading', 'Tech']);
 
     Storage::disk('local')->assertMissing("imports/{$import->id}/x.csv");
+});
+
+it('does not create folders for an invalid-URL row (T19)', function () {
+    Queue::fake();
+    Storage::fake('local');
+    $u = User::factory()->create();
+    $content = "url,folder\n".'not-a-url,Orphan/Nested'."\n";
+    $file = UploadedFile::fake()->createWithContent('bad.csv', $content);
+
+    $import = app(ImportService::class)->start($u, $file, null);
+    (new ProcessImport($import->id))->handle();
+
+    $import->refresh();
+    expect($import->status)->toBe('completed')
+        ->and($import->created_count)->toBe(0)
+        ->and($import->error_count)->toBe(1)
+        ->and(Folder::where('user_id', $u->id)->count())->toBe(0);
 });
 
 it('caps folder depth: deep folder_path still saves the bookmark at the deepest allowed level', function () {

@@ -75,18 +75,28 @@ class ProcessImport implements ShouldQueue
             $batch = 0;
             foreach ($importer->rows($absolutePath) as $row) {
                 /** @var ParsedBookmark $row */
-                $folderId = $this->resolveFolder($user, $folders, $row->folderPath, $folderCache, $appendError);
-
                 try {
                     $result = $bookmarks->save($user, BookmarkInput::fromArray([
                         'url' => $row->url,
                         'title' => $row->title,
                         'description' => $row->description,
                         'tags' => $row->tags,
-                        'folder_id' => $folderId,
                     ]));
 
-                    $result['alreadySaved'] ? $duplicates++ : $created++;
+                    if ($result['alreadySaved']) {
+                        $duplicates++;
+                    } else {
+                        $created++;
+
+                        // Resolve/create the folder_path chain only after save()
+                        // accepts the row. Doing it first meant an invalid-URL
+                        // row (rejected below with InvalidUrlException) still
+                        // left its folder segments behind as orphans.
+                        $folderId = $this->resolveFolder($user, $folders, $row->folderPath, $folderCache, $appendError);
+                        if ($folderId !== null) {
+                            $result['bookmark']->update(['folder_id' => $folderId]);
+                        }
+                    }
                 } catch (InvalidUrlException $e) {
                     $appendError([
                         'level' => 'error',

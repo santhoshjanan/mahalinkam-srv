@@ -22,6 +22,8 @@ const selected = ref([]);
 
 const showEditor = ref(false);
 const editingBookmark = ref(null);
+const alreadySavedNotice = ref(false);
+const libraryNotice = ref(null);
 
 const allTagNames = computed(() => props.tags.map((t) => t.name));
 
@@ -90,12 +92,39 @@ function toggle(id) {
 
 function openCreate() {
     editingBookmark.value = null;
+    alreadySavedNotice.value = false;
+    libraryNotice.value = null;
     showEditor.value = true;
 }
 
 function openEdit(bookmark) {
     editingBookmark.value = bookmark;
+    alreadySavedNotice.value = false;
+    libraryNotice.value = null;
     showEditor.value = true;
+}
+
+function closeEditor() {
+    showEditor.value = false;
+    alreadySavedNotice.value = false;
+}
+
+// The server flashed `already_saved` for a create that hit an existing
+// bookmark (spec §5.2: "then offer edit"). If that row is on the current
+// page, promote the open modal to edit mode bound to it; otherwise close and
+// show a library notice rather than leaving a misleading CREATE-mode form.
+function handleAlreadySaved(id) {
+    const row = rows.value.find((b) => b.id === id);
+    if (row) {
+        editingBookmark.value = row;
+        alreadySavedNotice.value = true;
+        showEditor.value = true;
+    } else {
+        showEditor.value = false;
+        editingBookmark.value = null;
+        alreadySavedNotice.value = false;
+        libraryNotice.value = "Already saved — it's in your library.";
+    }
 }
 </script>
 
@@ -154,6 +183,20 @@ function openEdit(bookmark) {
                     </aside>
 
                     <div class="space-y-4">
+                        <div
+                            v-if="libraryNotice"
+                            class="flex items-center justify-between rounded-md bg-amber-50 p-3 text-sm text-amber-800"
+                        >
+                            <span>{{ libraryNotice }}</span>
+                            <button
+                                type="button"
+                                class="ms-3 font-medium text-amber-900 hover:underline"
+                                @click="libraryNotice = null"
+                            >
+                                Dismiss
+                            </button>
+                        </div>
+
                         <BulkBar
                             v-if="selected.length"
                             :selected="selected"
@@ -231,7 +274,9 @@ function openEdit(bookmark) {
             :bookmark="editingBookmark"
             :folders="folders"
             :all-tags="allTagNames"
-            @close="showEditor = false"
+            :already-saved-notice="alreadySavedNotice"
+            @close="closeEditor"
+            @already-saved="handleAlreadySaved"
         />
     </AuthenticatedLayout>
 </template>

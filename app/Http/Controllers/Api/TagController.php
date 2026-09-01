@@ -15,11 +15,15 @@ class TagController extends Controller
 
         $tags = $request->user()->tags()
             ->withCount('bookmarks')
+            // lower() is a deliberate ANSI-SQL exception to the "no raw SQL" rule — portable across sqlite/mysql/pgsql, verified by the 3-DB CI matrix.
             ->when($q !== '', fn ($query) => $query->whereRaw(
                 'lower(name) like ?',
                 ['%'.mb_strtolower($q).'%']
             ))
-            ->orderBy('name')
+            // Order by the maintained name_lower column so the API tag order
+            // matches the web UI (Web/BookmarkController) and is deterministic
+            // across engines (Postgres orders `name` case-sensitively).
+            ->orderBy('name_lower')
             ->get();
 
         return response()->json(

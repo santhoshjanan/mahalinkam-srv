@@ -18,17 +18,19 @@ database.
 ```bash
 git clone <this-repo-url> mahalinkam-srv
 cd mahalinkam-srv
-cp .env.example .env
+cp .env.production.example .env
 ```
 
-Edit `.env`:
+Edit `.env` (the production template already sets `APP_ENV=production`,
+`APP_DEBUG=false`, `SESSION_SECURE_COOKIE=true` and `TRUSTED_PROXIES=*`):
 
 ```dotenv
-APP_ENV=production
-APP_DEBUG=false
 APP_URL=https://your.domain
 APP_KEY=            # set this — see below
 ```
+
+The container refuses to start if `APP_DEBUG` is truthy while
+`APP_ENV=production`, so a stray debug flag can't leak stack traces on :8080.
 
 Generate a **persistent** `APP_KEY` once and paste it into `.env`. If you skip
 this the entrypoint generates an ephemeral key on every container recreate, which
@@ -49,6 +51,9 @@ docker compose -f compose.prod.yaml up -d
 **TLS / reverse proxy:** this stack ships none. Point your own reverse proxy
 (Traefik, Caddy, nginx, …) at port **8080** for TLS termination and routing. The
 container's internal FPM + nginx is the application server, not an edge proxy.
+Leave `TRUSTED_PROXIES` at its default `*` (or set it to your proxy's IP/CIDR)
+so the app detects HTTPS from the proxy's `X-Forwarded-Proto` header — without
+it `Request::isSecure()` is false and absolute URLs come out as `http://`.
 
 Create the first user (there is no web installer):
 
@@ -74,6 +79,7 @@ All settings have safe defaults, so a bare start works with no edits. Set these 
 | `METADATA_FETCH_TIMEOUT` | `8` | Total seconds allowed per metadata fetch. |
 | `METADATA_FETCH_MAX_BYTES` | `524288` | Max response body read per metadata fetch (bytes). |
 | `IMPORT_MAX_FILE_MB` | `20` | Upload size cap for import files (MB). |
+| `TRUSTED_PROXIES` | `*` | Comma-separated proxy IPs/CIDRs whose `X-Forwarded-*` headers are trusted, or `*` when your reverse proxy is the only ingress. Needed so HTTPS is detected behind TLS termination — otherwise Laravel emits `http://` URLs and drops secure cookies. |
 | `DB_CONNECTION` | `sqlite` | Database driver: `sqlite` \| `mysql` \| `pgsql`. |
 | `QUEUE_CONNECTION` | `database` | Queue driver. The bundled `worker` container runs `queue:work`. |
 

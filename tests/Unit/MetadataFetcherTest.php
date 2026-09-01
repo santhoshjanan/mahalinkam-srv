@@ -96,3 +96,45 @@ it('re-checks the host on each redirect hop and blocks an internal target', func
     expect(fn () => (new MetadataFetcher($guard))->fetch('http://start.test/go'))
         ->toThrow(BlockedHostException::class);
 });
+
+it('caps the description at 5000 characters', function () {
+    Http::fake(['*' => Http::response(
+        '<html><head><title>T</title>'
+        .'<meta name="description" content="'.str_repeat('d', 9000).'">'
+        .'</head></html>',
+        200,
+        ['Content-Type' => 'text/html'],
+    )]);
+
+    $meta = metadataFetcherWithNoopGuard()->fetch('https://example.com/');
+
+    expect(mb_strlen($meta['description']))->toBe(5000);
+});
+
+it('returns null for a data: URI favicon href', function () {
+    Http::fake(['*' => Http::response(
+        '<html><head><title>T</title>'
+        .'<link rel="icon" href="data:image/png;base64,'.str_repeat('A', 40).'">'
+        .'</head></html>',
+        200,
+        ['Content-Type' => 'text/html'],
+    )]);
+
+    $meta = metadataFetcherWithNoopGuard()->fetch('https://example.com/');
+
+    expect($meta['favicon_url'])->toBeNull();
+});
+
+it('returns null when the computed favicon URL would exceed 2048 characters', function () {
+    Http::fake(['*' => Http::response(
+        '<html><head><title>T</title>'
+        .'<link rel="icon" href="'.str_repeat('x', 3000).'.png">'
+        .'</head></html>',
+        200,
+        ['Content-Type' => 'text/html'],
+    )]);
+
+    $meta = metadataFetcherWithNoopGuard()->fetch('https://example.com/');
+
+    expect($meta['favicon_url'])->toBeNull();
+});

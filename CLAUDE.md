@@ -30,8 +30,10 @@ if a rule exists in the Web path it must be the same code in the API path.
 - **`app/Services/UrlNormalizer.php`** — the URL-dedup contract. Its behavior is
   pinned by `app/Support/url-normalizer-fixtures.php`, a shared expectation table
   the browser-extension port keeps a byte-identical copy of; changing
-  normalization means changing both. `MAX_LENGTH = 768` matches the
-  `bookmarks.normalized_url` column width. Dedup is enforced by the
+  normalization means changing both. `MAX_LENGTH = 766` matches the
+  `bookmarks.normalized_url` column width (largest value that keeps the
+  composite `(user_id, normalized_url)` unique index inside MySQL's utf8mb4
+  3072-byte limit: `766 * 4 + 8` for the bigint `user_id`). Dedup is enforced by the
   `bookmarks (user_id, normalized_url)` unique index, and `BookmarkService::save()`
   is idempotent — saving the same URL twice updates, never duplicates.
 - **`app/Services/FolderService.php`** — `MAX_DEPTH = 10`; move operations run a
@@ -56,8 +58,13 @@ Tests run on SQLite; CI also runs the full suite against MySQL and Postgres
 (`.github/workflows/ci.yml`), so:
 
 - No DB-specific SQL functions and no functional indexes. `lower()` in a `WHERE`
-  or `ORDER BY` for search (as in `app/Queries/BookmarkListQuery.php`) is fine;
+  or `ORDER BY` for search (as in `app/Queries/BookmarkListQuery.php` and
+  `app/Http/Controllers/Api/TagController.php`) is fine;
   case-insensitive uniqueness uses a plain `name_lower` column instead.
+- **`lower()` is the one deliberate exception to the "no raw SQL" rule** — it is
+  ANSI-standard and behaves identically on sqlite/mysql/pgsql, and the 3-DB CI
+  matrix verifies it. Every `whereRaw`/`orderByRaw('lower(...`) site carries a
+  comment saying so. No other SQL function may be used raw.
 - No raw DB-engine features in migrations (no `ILIKE`, no
   `ON UPDATE CURRENT_TIMESTAMP`). Use `$table->json()` for JSON.
 - Enum-like columns are stored as `string` and cast to a PHP enum

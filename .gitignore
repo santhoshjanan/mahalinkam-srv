@@ -8,6 +8,7 @@
 .phpunit.result.cache
 /.fleet
 /.idea
+/.impeccable
 /.nova
 /.phpunit.cache
 /.vscode

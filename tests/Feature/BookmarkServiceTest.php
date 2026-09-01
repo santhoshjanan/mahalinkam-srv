@@ -46,6 +46,28 @@ it('creates a new bookmark and dispatches metadata when title is missing', funct
     Queue::assertPushed(FetchBookmarkMetadata::class);
 });
 
+it('clamps an over-long title to the column width on save()', function () {
+    Queue::fake();
+    $u = User::factory()->create();
+    $r = $this->svc->save($u, BookmarkInput::fromArray([
+        'url' => 'https://a.test/clamp',
+        'title' => str_repeat('t', 3000),
+    ]));
+    expect(mb_strlen($r['bookmark']->title))->toBe(1024)
+        ->and(mb_strlen($r['bookmark']->fresh()->title))->toBe(1024);
+});
+
+it('clamps an over-long description to 5000 chars on update()', function () {
+    Queue::fake();
+    $u = User::factory()->create();
+    $r = $this->svc->save($u, BookmarkInput::fromArray(['url' => 'https://a.test/d', 'title' => 't']));
+    $updated = $this->svc->update($r['bookmark'], BookmarkInput::fromArray([
+        'url' => 'https://a.test/d',
+        'description' => str_repeat('x', 9000),
+    ]));
+    expect(mb_strlen($updated->description))->toBe(5000);
+});
+
 it('is idempotent on the normalized URL', function () {
     Queue::fake();
     $u = User::factory()->create();

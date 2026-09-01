@@ -6,7 +6,10 @@ use App\Exceptions\InvalidUrlException;
 
 class UrlNormalizer
 {
-    public const MAX_LENGTH = 768;
+    // Matches the bookmarks.normalized_url column width. 766 is the largest
+    // value that keeps the composite (user_id, normalized_url) unique index
+    // within MySQL's utf8mb4 3072-byte limit: 766 * 4 + 8 (bigint user_id) = 3072.
+    public const MAX_LENGTH = 766;
 
     public const TRACKING_PARAMS = [
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content', 'utm_id',
