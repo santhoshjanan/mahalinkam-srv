@@ -49,13 +49,17 @@ it('filters unfiled vs a specific folder (non-recursive)', function () {
 
 it('ANDs tag filters and sorts', function () {
     $u = User::factory()->create();
-    bm($u, ['title' => 'AB'], ['a', 'b']);
-    bm($u, ['title' => 'A only'], ['a']);
+    // Titles must differ at a LETTER, not at whitespace/punctuation: glibc's
+    // en_US.UTF-8 collation (Postgres CI) treats a space as ignorable at the
+    // primary level, so "A only" would sort AFTER "AB" there while SQLite/MySQL
+    // (byte order) put it first. `Alpha` < `Beta` < `zzz` in every collation.
+    bm($u, ['title' => 'Beta'], ['a', 'b']);
+    bm($u, ['title' => 'Alpha'], ['a']);
     expect(BookmarkListQuery::for($u, ['tags' => ['a', 'b']])->total())->toBe(1);
 
     bm($u, ['title' => 'zzz']);
     $titles = BookmarkListQuery::for($u, ['sort' => 'title_asc'])->pluck('title')->all();
-    expect($titles[0])->toBe('A only');
+    expect($titles)->toBe(['Alpha', 'Beta', 'zzz']);
 });
 
 it('sorts created_desc by default and created_asc as the reverse', function () {
