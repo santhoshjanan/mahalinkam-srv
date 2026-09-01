@@ -42,6 +42,10 @@ services:
     # (that is the `app` container's job — running both concurrently on a cold
     # first boot races on the fresh SQLite file). This bypasses entrypoint.sh.
     entrypoint: ["php", "artisan", "queue:work", "--tries=3", "--max-time=3600"]
+    # The base image's HEALTHCHECK curls the web server on :8080, which this
+    # container doesn't run — disable it so the worker isn't perpetually "unhealthy".
+    healthcheck:
+      disable: true
     env_file:
       - path: .env
         required: false
