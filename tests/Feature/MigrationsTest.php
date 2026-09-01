@@ -1,5 +1,8 @@
 <?php
 
+use App\Models\User;
+use Illuminate\Database\QueryException;
+use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Schema;
 
 it('creates all mahalinkam tables with key columns', function () {
@@ -10,4 +13,19 @@ it('creates all mahalinkam tables with key columns', function () {
     expect(Schema::hasColumns('folders', ['user_id', 'parent_id', 'name', 'position']))->toBeTrue();
     expect(Schema::hasColumns('tags', ['user_id', 'name', 'name_lower']))->toBeTrue();
     expect(Schema::hasColumns('imports', ['user_id', 'format', 'status', 'total_rows', 'processed_rows', 'created_count', 'duplicate_count', 'error_count', 'errors', 'original_filename']))->toBeTrue();
+});
+
+it('enforces the (user_id, normalized_url) unique index', function () {
+    $user = User::factory()->create();
+    $row = [
+        'user_id' => $user->id,
+        'normalized_url' => 'https://dup.test/x',
+        'url' => 'https://dup.test/x',
+        'metadata_status' => 'done',
+        'created_at' => now(),
+        'updated_at' => now(),
+    ];
+    DB::table('bookmarks')->insert($row);
+    expect(fn () => DB::table('bookmarks')->insert($row))
+        ->toThrow(QueryException::class);
 });

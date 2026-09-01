@@ -44,8 +44,8 @@ class BookmarkService
                 'folder_id' => $in->folderId,
                 'url' => $in->url,
                 'normalized_url' => $normalized,
-                'title' => $in->title,
-                'description' => $in->description,
+                'title' => $this->clamp($in->title, 1024),
+                'description' => $this->clamp($in->description, 5000),
                 'metadata_status' => $status,
             ]);
         } catch (QueryException $e) {
@@ -86,10 +86,10 @@ class BookmarkService
         }
 
         if ($in->title !== null) {
-            $bookmark->title = $in->title;
+            $bookmark->title = $this->clamp($in->title, 1024);
         }
         if ($in->description !== null) {
-            $bookmark->description = $in->description;
+            $bookmark->description = $this->clamp($in->description, 5000);
         }
 
         if ($in->folderIdProvided) {
@@ -113,6 +113,16 @@ class BookmarkService
         $user = $bookmark->user;
         $bookmark->delete();
         $this->tags->pruneOrphans($user);
+    }
+
+    /**
+     * Clamp a user-supplied string to the width of its target column. SQLite
+     * truncates silently but MySQL/Postgres raise a data-truncation error, so
+     * imports and metadata writes must clamp at this shared choke point.
+     */
+    private function clamp(?string $v, int $max): ?string
+    {
+        return $v === null ? null : mb_substr($v, 0, $max);
     }
 
     private function isUniqueViolation(QueryException $e): bool

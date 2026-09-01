@@ -1,5 +1,5 @@
 <script setup>
-import { computed, ref, watch } from 'vue';
+import { computed, watch } from 'vue';
 import { useForm, usePage } from '@inertiajs/vue3';
 import Modal from '@/Components/Modal.vue';
 import InputLabel from '@/Components/InputLabel.vue';
@@ -15,16 +15,17 @@ const props = defineProps({
     bookmark: { type: Object, default: null },
     folders: { type: Array, default: () => [] },
     allTags: { type: Array, default: () => [] },
+    // Set by the parent after a create attempt hit an existing bookmark and the
+    // editor was switched into edit mode bound to that record (spec §5.2).
+    alreadySavedNotice: { type: Boolean, default: false },
 });
 
-const emit = defineEmits(['close']);
+const emit = defineEmits(['close', 'already-saved']);
 
 const page = usePage();
 
 const isEdit = computed(() => !!props.bookmark);
 const folderOptions = computed(() => flattenForSelect(props.folders));
-
-const alreadySaved = ref(false);
 
 const form = useForm({
     url: '',
@@ -34,13 +35,15 @@ const form = useForm({
     tags: [],
 });
 
+// Re-seed the form whenever the modal opens OR the bound bookmark changes
+// (the parent swaps `bookmark` in-place when an `already_saved` create is
+// promoted to an edit without closing the modal).
 watch(
-    () => props.show,
-    (open) => {
+    [() => props.show, () => props.bookmark],
+    ([open]) => {
         if (!open) {
             return;
         }
-        alreadySaved.value = false;
         form.clearErrors();
         form.defaults({
             url: props.bookmark?.url ?? '',
@@ -82,7 +85,9 @@ function submit() {
         onSuccess: () => {
             const flash = page.props.flash;
             if (flash?.kind === 'already_saved') {
-                alreadySaved.value = true;
+                // Hand off to the parent: it decides whether to switch this
+                // modal into edit mode for flash.id or close with a notice.
+                emit('already-saved', flash.id);
 
                 return;
             }
@@ -106,7 +111,7 @@ function submit() {
             </h2>
 
             <div
-                v-if="alreadySaved"
+                v-if="isEdit && alreadySavedNotice"
                 class="mt-3 rounded-md bg-amber-50 p-3 text-sm text-amber-800"
             >
                 Already saved — editing the existing bookmark. Adjust the fields and save again.

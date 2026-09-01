@@ -2,6 +2,7 @@
 
 // tests/Unit/Importers/ImportersTest.php
 
+use App\Support\Importers\HtmlImporter;
 use App\Support\Importers\ImporterFactory;
 
 function importFixturePath(string $file): string
@@ -76,4 +77,19 @@ it('parses a realistic chrome export', function () {
     ]);
 
     expect($rows)->toHaveCount(3);
+});
+
+it('yields nothing (and does not throw) for a valid HTML file with zero bookmark matches', function () {
+    // preg_match_all returns 0 here, not false — the importer must treat that
+    // as "empty file", distinct from the `=== false` PCRE-failure branch which
+    // raises RuntimeException.
+    $tmp = tempnam(sys_get_temp_dir(), 'imp');
+    file_put_contents($tmp, '<html><body>no bookmarks here</body></html>');
+
+    try {
+        $rows = iterator_to_array((new HtmlImporter)->rows($tmp));
+        expect($rows)->toBe([]);
+    } finally {
+        @unlink($tmp);
+    }
 });

@@ -6,6 +6,8 @@ use App\Jobs\FetchBookmarkMetadata;
 use App\Models\Bookmark;
 use App\Models\User;
 use App\Services\MetadataFetcher;
+use App\Support\PrivateNetworkGuard;
+use Illuminate\Support\Facades\Http;
 use Illuminate\Support\Facades\Queue;
 
 function fakeFetcherReturning(array $meta): void
@@ -165,4 +167,36 @@ it('forbids a stranger from triggering a refetch', function () {
 
     expect($b->fresh()->metadata_status)->toBe(MetadataStatus::Failed);
     Queue::assertNothingPushed();
+});
+
+it('clamps an oversized description and rejects a data: favicon when running the real fetcher', function () {
+    $guard = Mockery::mock(PrivateNetworkGuard::class);
+    $guard->shouldReceive('assertHostAllowed')->andReturnNull();
+    app()->instance(MetadataFetcher::class, new MetadataFetcher($guard));
+
+    Http::fake(['*' => Http::response(
+        '<html><head><title>Huge</title>'
+        .'<meta name="description" content="'.str_repeat('d', 9000).'">'
+        .'<link rel="icon" href="data:image/png;base64,'.str_repeat('A', 64).'">'
+        .'</head></html>',
+        200,
+        ['Content-Type' => 'text/html'],
+    )]);
+
+    $u = User::factory()->create();
+    $b = Bookmark::factory()->for($u)->create([
+        'url' => 'https://example.com/page',
+        'normalized_url' => 'https://example.com/page',
+        'title' => null,
+        'description' => null,
+        'favicon_url' => null,
+        'metadata_status' => MetadataStatus::Pending,
+    ]);
+
+    (new FetchBookmarkMetadata($b))->handle(app(MetadataFetcher::class));
+
+    $b->refresh();
+    expect(mb_strlen($b->description))->toBe(5000)
+        ->and($b->favicon_url)->toBeNull()
+        ->and($b->metadata_status)->toBe(MetadataStatus::Done);
 });

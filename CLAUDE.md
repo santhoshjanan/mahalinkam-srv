@@ -58,8 +58,13 @@ Tests run on SQLite; CI also runs the full suite against MySQL and Postgres
 (`.github/workflows/ci.yml`), so:
 
 - No DB-specific SQL functions and no functional indexes. `lower()` in a `WHERE`
-  or `ORDER BY` for search (as in `app/Queries/BookmarkListQuery.php`) is fine;
+  or `ORDER BY` for search (as in `app/Queries/BookmarkListQuery.php` and
+  `app/Http/Controllers/Api/TagController.php`) is fine;
   case-insensitive uniqueness uses a plain `name_lower` column instead.
+- **`lower()` is the one deliberate exception to the "no raw SQL" rule** — it is
+  ANSI-standard and behaves identically on sqlite/mysql/pgsql, and the 3-DB CI
+  matrix verifies it. Every `whereRaw`/`orderByRaw('lower(...`) site carries a
+  comment saying so. No other SQL function may be used raw.
 - No raw DB-engine features in migrations (no `ILIKE`, no
   `ON UPDATE CURRENT_TIMESTAMP`). Use `$table->json()` for JSON.
 - Enum-like columns are stored as `string` and cast to a PHP enum

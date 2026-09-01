@@ -58,6 +58,19 @@ it('filters tags by q case-insensitively', function () {
         ->assertJsonPath('0.name', 'alpha');
 });
 
+it('orders tags case-insensitively by name_lower (matches the web UI)', function () {
+    $u = User::factory()->create();
+    Tag::factory()->for($u)->create(['name' => 'Zebra', 'name_lower' => 'zebra']);
+    Tag::factory()->for($u)->create(['name' => 'apple', 'name_lower' => 'apple']);
+    Tag::factory()->for($u)->create(['name' => 'Mango', 'name_lower' => 'mango']);
+
+    $this->withToken(token($u))->getJson('/api/tags')
+        ->assertOk()
+        ->assertJsonPath('0.name', 'apple')
+        ->assertJsonPath('1.name', 'Mango')
+        ->assertJsonPath('2.name', 'Zebra');
+});
+
 it('applies the 120/min rate limit to api routes', function () {
     $u = User::factory()->create();
 

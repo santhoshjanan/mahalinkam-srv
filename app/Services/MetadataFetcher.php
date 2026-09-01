@@ -64,8 +64,12 @@ class MetadataFetcher
 
     private function description(Crawler $crawler): ?string
     {
-        return $this->firstAttr($crawler, 'meta[name="description"]', 'content')
+        $value = $this->firstAttr($crawler, 'meta[name="description"]', 'content')
             ?? $this->firstAttr($crawler, 'meta[property="og:description"]', 'content');
+
+        // Cap at the `description` column / FormRequest limit so a page with a
+        // giant meta description can't fail the DB write on MySQL/Postgres.
+        return $value === null ? null : mb_substr($value, 0, 5000);
     }
 
     private function firstMatch(Crawler $crawler, string $selector): ?string
@@ -112,18 +116,25 @@ class MetadataFetcher
             return "{$origin}/favicon.ico";
         }
 
-        if (str_starts_with($href, 'http://') || str_starts_with($href, 'https://')) {
-            return $href;
+        // A data: URI is the icon bytes inline, not a location — building an
+        // absolute URL from it yields a bogus link, so drop it.
+        if (str_starts_with(strtolower($href), 'data:')) {
+            return null;
         }
 
-        if (str_starts_with($href, '//')) {
-            return "{$scheme}:{$href}";
-        }
+        $resolved = match (true) {
+            str_starts_with($href, 'http://'), str_starts_with($href, 'https://') => $href,
+            str_starts_with($href, '//') => "{$scheme}:{$href}",
+            str_starts_with($href, '/') => $origin.$href,
+            default => $this->resolveRelative($baseUrl, $origin, $href),
+        };
 
-        if (str_starts_with($href, '/')) {
-            return $origin.$href;
-        }
+        // Reject anything that would overflow the favicon_url column (2048).
+        return mb_strlen($resolved) > 2048 ? null : $resolved;
+    }
 
+    private function resolveRelative(string $baseUrl, string $origin, string $href): string
+    {
         $path = parse_url($baseUrl, PHP_URL_PATH) ?: '/';
         $dir = rtrim(substr($path, 0, strrpos($path, '/') ?: 0), '/');
 

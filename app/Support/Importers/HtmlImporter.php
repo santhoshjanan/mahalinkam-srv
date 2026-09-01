@@ -30,7 +30,17 @@ final class HtmlImporter implements Importer
 
         $pattern = '~<h3\b[^>]*>(?<h3>.*?)</h3>|<a\b(?<attrs>[^>]*)>(?<text>.*?)</a>|</dl\s*>~is';
 
-        if (! preg_match_all($pattern, $raw, $matches, PREG_SET_ORDER)) {
+        $count = preg_match_all($pattern, $raw, $matches, PREG_SET_ORDER);
+
+        // Distinguish a PCRE engine failure (false — backtrack/JIT stack limit
+        // hit on a large or pathological file) from a genuine zero-match file.
+        // Treating false as "0 rows" would import a real Netscape export as
+        // "completed, 0 rows, no error" — silent data loss.
+        if ($count === false) {
+            throw new RuntimeException('Could not parse the bookmark file (too large or malformed HTML).');
+        }
+
+        if ($count === 0) {
             return;
         }
 
