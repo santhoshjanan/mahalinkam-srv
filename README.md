@@ -1,5 +1,17 @@
 # mahalinkam
 
+[![CI](https://github.com/santhoshjanan/mahalinkam-srv/actions/workflows/ci.yml/badge.svg)](https://github.com/santhoshjanan/mahalinkam-srv/actions/workflows/ci.yml)
+[![Latest release](https://img.shields.io/github/v/release/santhoshjanan/mahalinkam-srv?sort=semver&label=release)](https://github.com/santhoshjanan/mahalinkam-srv/releases/latest)
+[![Deploy: Docker](https://img.shields.io/badge/deploy-Docker-2496ED?logo=docker&logoColor=white)](#production-quick-start)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](https://github.com/santhoshjanan/mahalinkam-srv/blob/main/composer.json)
+
+<!--
+  CI is live now. The release badge populates once you push a `v*.*.*` tag (the
+  `release` job in ci.yml cuts a GitHub Release with generated notes).
+  If you publish a container image, add e.g.:
+  [![Image](https://img.shields.io/badge/ghcr.io-mahalinkam--srv-blue?logo=github)](https://github.com/santhoshjanan/mahalinkam-srv/pkgs/container/mahalinkam-srv)
+-->
+
 Self-hosted, multi-user bookmark manager with a companion browser extension. This
 repository is the **server** — a Laravel application that is the single source of
 truth for all bookmarks, folders and tags. It serves a web UI (Inertia + Vue) for

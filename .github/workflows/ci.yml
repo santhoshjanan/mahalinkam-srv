@@ -1,6 +1,10 @@
 # .github/workflows/ci.yml
 name: CI
-on: [push, pull_request]
+on:
+  push:
+    branches: ['**']
+    tags: ['v*.*.*']
+  pull_request:
 jobs:
   test:
     runs-on: ubuntu-latest
@@ -65,3 +69,19 @@ jobs:
         run: |
           php artisan tinker --execute="echo 'DB default: '.config('database.default').PHP_EOL;"
           php artisan test
+
+  # Cut a GitHub Release with auto-generated notes when a v*.*.* tag is pushed
+  # and the full 3-DB test matrix passed. The server ships as source + compose,
+  # so there are no build artifacts to attach.
+  release:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          generate_release_notes: true
